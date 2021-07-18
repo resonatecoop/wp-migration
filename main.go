@@ -108,13 +108,14 @@ func main() {
 			Limit(1).
 			Scan(ctx)
 
+		track := getTrack(sourceWPDB, ctx, &thisUser)
+
 		newPGUser := &model.User{
 			Username: thisUser.Email,
 			RoleID:   role_id,
 			LegacyID: int32(thisUser.ID),
 			TenantID: 0,
-			// Member:   role_id == 5,
-			Member: false,
+			Member:   track != nil,
 		}
 
 		if err == nil {
@@ -219,30 +220,26 @@ func main() {
 	fmt.Println("Number of PG users:", len(pgusers))
 }
 
-/*
-Need track model on user-api legacy
-func getTrack(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser, key string) (string, error) {
+// Need track model on user-api legacy
+func getTrack(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser) error {
 	var (
 		err error
 	)
 
-	track := new(wpmodel.Track)
-
 	status := []int{0, 2, 3}
 
 	err = WPDB.NewSelect().
-		Model(track).
+		Table("tracks").
 		Where("uid = ?", user.ID).
 		Where("status IN (?)", bun.In(status)).
 		Scan(ctx)
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return track, nil
+	return nil
 }
-*/
 
 func getUserMetaValue(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser, key string) (string, error) {
 	var (
