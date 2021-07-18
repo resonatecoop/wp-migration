@@ -21,17 +21,18 @@ import (
 
 func main() {
 	var (
-		err        error
-		ctx        context.Context
-		targetPSDB *bun.DB
-		sourceWPDB *bun.DB
-		wpusers    []wpmodel.WpUser
-		pgusers    []pgmodel.User
-		allEmails  []string
-		role_id    int32
-		inserted   int = 0
-		updated    int = 0
-		skipped    int = 0
+		err          error
+		ctx          context.Context
+		targetPSDB   *bun.DB
+		sourceWPDB   *bun.DB
+		wpusers      []wpmodel.WpUser
+		pgusers      []pgmodel.User
+		allEmails    []string
+		allNicknames []string
+		role_id      int32
+		inserted     int = 0
+		updated      int = 0
+		skipped      int = 0
 	)
 
 	ctx = context.Background()
@@ -40,6 +41,7 @@ func main() {
 
 	err = sourceWPDB.NewSelect().
 		Model(&wpusers).
+		Where("user_email NOT LIKE ?", "%@resonate.is").
 		Scan(ctx)
 
 	if err != nil {
@@ -111,7 +113,8 @@ func main() {
 			RoleID:   role_id,
 			LegacyID: int32(thisUser.ID),
 			TenantID: 0,
-			Member:   role_id == 5,
+			// Member:   role_id == 5,
+			Member: false,
 		}
 
 		if err == nil {
@@ -152,7 +155,8 @@ func main() {
 				panic(err)
 			}
 
-			if thisUsersNickname != "" {
+			if thisUsersNickname != "" && !Seen(allNicknames, thisUsersNickname) {
+				allNicknames = append(allNicknames, thisUsersNickname)
 
 				var refUserID uuid.UUID
 
@@ -214,6 +218,31 @@ func main() {
 
 	fmt.Println("Number of PG users:", len(pgusers))
 }
+
+/*
+Need track model on user-api legacy
+func getTrack(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser, key string) (string, error) {
+	var (
+		err error
+	)
+
+	track := new(wpmodel.Track)
+
+	status := []int{0, 2, 3}
+
+	err = WPDB.NewSelect().
+		Model(track).
+		Where("uid = ?", user.ID).
+		Where("status IN (?)", bun.In(status)).
+		Scan(ctx)
+
+	if err != nil {
+		return "", err
+	}
+
+	return track, nil
+}
+*/
 
 func getUserMetaValue(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser, key string) (string, error) {
 	var (
