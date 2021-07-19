@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/pariz/gountries"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -35,11 +37,69 @@ func main() {
 		inserted           int    = 0
 		updated            int    = 0
 		skipped            int    = 0
+		postgresDBUser     string = "resonate_test_user"
+		postgresDBPassword string = "password"
+		postgresDBName     string = "resonate_test"
+		postgresDBHost     string = "127.0.0.1"
+		postgresDBPort     string = "5432"
+		mysqlDBUser        string = "resonate_is"
+		mysqlDBPassword    string = ""
+		mysqlDBName        string = "resonate_is"
+		mysqlDBHost        string = "127.0.0.1"
+		mysqlDBPort        string = "3306"
 	)
 
+	err = godotenv.Load()
+
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	// postgres db config
+	if os.Getenv("POSTGRES_DB_USER") != "" {
+		postgresDBUser = os.Getenv("POSTGRES_DB_USER")
+	}
+
+	if os.Getenv("POSTGRES_DB_PASSWORD") != "" {
+		postgresDBPassword = os.Getenv("POSTGRES_DB_PASSWORD")
+	}
+
+	if os.Getenv("POSTGRES_DB_HOST") != "" {
+		postgresDBHost = os.Getenv("POSTGRES_DB_HOST")
+	}
+
+	if os.Getenv("POSTGRES_DB_PORT") != "" {
+		postgresDBPort = os.Getenv("POSTGRES_DB_PORT")
+	}
+
+	if os.Getenv("POSTGRES_DB_NAME") != "" {
+		postgresDBName = os.Getenv("POSTGRES_DB_NAME")
+	}
+
+	// mysql db config
+	if os.Getenv("MYSQL_DB_USER") != "" {
+		mysqlDBUser = os.Getenv("MYSQL_DB_USER")
+	}
+
+	if os.Getenv("MYSQL_DB_PASSWORD") != "" {
+		mysqlDBPassword = os.Getenv("MYSQL_DB_PASSWORD")
+	}
+
+	if os.Getenv("MYSQL_DB_HOST") != "" {
+		mysqlDBHost = os.Getenv("MYSQL_DB_HOST")
+	}
+
+	if os.Getenv("MYSQL_DB_PORT") != "" {
+		mysqlDBPort = os.Getenv("MYSQL_DB_PORT")
+	}
+
+	if os.Getenv("MYSQL_DB_NAME") != "" {
+		mysqlDBName = os.Getenv("MYSQL_DB_NAME")
+	}
+
 	ctx = context.Background()
-	targetPSDB = connectPSDB("postgres://resonate_test_user:password@127.0.0.1:5432/resonate_test?sslmode=disable", true)
-	sourceWPDB = connectWPDB("go_oauth2_server", "", "resonate_is", true)
+	targetPSDB = connectPSDB(postgresDBUser, postgresDBPassword, postgresDBHost, postgresDBPort, postgresDBName, true)
+	sourceWPDB = connectWPDB(mysqlDBUser, mysqlDBPassword, mysqlDBHost, mysqlDBPort, mysqlDBName, true)
 
 	err = sourceWPDB.NewSelect().
 		Model(&wpusers).
@@ -293,9 +353,11 @@ func Seen(list []string, item string) bool {
 	return result
 }
 
-func connectPSDB(PSN string, isDebug bool) *bun.DB {
+func connectPSDB(username string, password string, host string, port string, dbname string, isDebug bool) *bun.DB {
 
-	dbconfig, err := pgx.ParseConfig(PSN)
+	dbconfig, err := pgx.ParseConfig(
+		fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, dbname),
+	)
 
 	if err != nil {
 		panic(err)
@@ -313,9 +375,9 @@ func connectPSDB(PSN string, isDebug bool) *bun.DB {
 	return db
 }
 
-func connectWPDB(username string, password string, dbname string, isDebug bool) *bun.DB {
+func connectWPDB(username string, password string, host string, port string, dbname string, isDebug bool) *bun.DB {
 
-	sqldb, err := sql.Open("mysql", username+":"+password+"@/"+dbname)
+	sqldb, err := sql.Open("mysql", fmt.Sprintf("%s:%s@(%s:%s)/%s", username, password, host, port, dbname))
 	if err != nil {
 		panic(err)
 	}
