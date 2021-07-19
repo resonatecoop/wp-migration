@@ -65,6 +65,10 @@ func main() {
 		remoteHost = os.Getenv("RESONATE_REMOTE_HOST")
 	}
 
+	if os.Getenv("RESONATE_REMOTE_USER") != "" {
+		remoteUser = os.Getenv("RESONATE_REMOTE_USER")
+	}
+
 	sshTun := sshtun.New(localPort, remoteHost, remotePort)
 
 	sshTun.SetSSHAgent()
