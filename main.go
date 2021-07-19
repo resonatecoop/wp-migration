@@ -55,11 +55,7 @@ func main() {
 		remoteUser         string = "resonate_is"
 	)
 
-	err = godotenv.Load()
-
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	_ = godotenv.Load()
 
 	if os.Getenv("RESONATE_REMOTE_HOST") != "" {
 		remoteHost = os.Getenv("RESONATE_REMOTE_HOST")
