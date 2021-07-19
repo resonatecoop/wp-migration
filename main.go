@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 
 	"github.com/google/uuid"
+	"github.com/pariz/gountries"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v4"
@@ -21,18 +23,18 @@ import (
 
 func main() {
 	var (
-		err          error
-		ctx          context.Context
-		targetPSDB   *bun.DB
-		sourceWPDB   *bun.DB
-		wpusers      []wpmodel.WpUser
-		pgusers      []pgmodel.User
-		allEmails    []string
-		allNicknames []string
-		role_id      int32
-		inserted     int = 0
-		updated      int = 0
-		skipped      int = 0
+		err                error
+		ctx                context.Context
+		targetPSDB         *bun.DB
+		sourceWPDB         *bun.DB
+		wpusers            []wpmodel.WpUser
+		pgusers            []pgmodel.User
+		allEmails          []string
+		allNicknames       []string
+		role_id            int32
+		inserted           int    = 0
+		updated            int    = 0
+		skipped            int    = 0
 	)
 
 	ctx = context.Background()
@@ -100,6 +102,30 @@ func main() {
 			role_id = 6
 		}
 
+		newPGUser := &model.User{
+			Username: thisUser.Email,
+			RoleID:   role_id,
+			LegacyID: int32(thisUser.ID),
+			Password: thisUser.Password,
+			TenantID: 0,
+		}
+
+		err = getTrack(sourceWPDB, ctx, &thisUser)
+
+		if err == nil {
+			newPGUser.Member = true
+		}
+
+		thisUsersCountry, err := getUserMetaValue(sourceWPDB, ctx, &thisUser, "country")
+
+		if err == nil {
+			query := gountries.New()
+
+			gountry, _ := query.FindCountryByName(thisUsersCountry)
+
+			newPGUser.Country = gountry.Codes.Alpha2
+		}
+
 		existingUser := new(model.User)
 
 		err = targetPSDB.NewSelect().
@@ -108,21 +134,11 @@ func main() {
 			Limit(1).
 			Scan(ctx)
 
-		track := getTrack(sourceWPDB, ctx, &thisUser)
-
-		newPGUser := &model.User{
-			Username: thisUser.Email,
-			RoleID:   role_id,
-			LegacyID: int32(thisUser.ID),
-			TenantID: 0,
-			Member:   track != nil,
-		}
-
 		if err == nil {
 			//update
 			_, err = targetPSDB.NewUpdate().
 				Model(newPGUser).
-				Column("id", "username", "legacy_id", "role_id", "tenant_id", "member").
+				Column("id", "username", "password", "legacy_id", "country", "role_id", "tenant_id", "member").
 				Where("username = ?", thisUser.Email).
 				Exec(ctx)
 
@@ -135,7 +151,7 @@ func main() {
 			//insert
 			_, err = targetPSDB.NewInsert().
 				Model(newPGUser).
-				Column("id", "username", "legacy_id", "role_id", "tenant_id", "member").
+				Column("id", "username", "password", "legacy_id", "country", "role_id", "tenant_id", "member").
 				Exec(ctx)
 
 			if err != nil {
@@ -228,7 +244,10 @@ func getTrack(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser) error {
 
 	status := []int{0, 2, 3}
 
+	track := map[string]interface{}{}
+
 	err = WPDB.NewSelect().
+		Model(&track).
 		Table("tracks").
 		Where("uid = ?", user.ID).
 		Where("status IN (?)", bun.In(status)).
