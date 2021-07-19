@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/pariz/gountries"
+	"github.com/rgzr/sshtun"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v4"
@@ -45,8 +47,12 @@ func main() {
 		mysqlDBUser        string = "resonate_is"
 		mysqlDBPassword    string = ""
 		mysqlDBName        string = "resonate_is"
-		mysqlDBHost        string = "127.0.0.1"
-		mysqlDBPort        string = "3306"
+		mysqlDBHost        string = "localhost"
+		mysqlDBPort        string = "3307"
+		localPort          int    = 3307
+		remotePort         int    = 3306
+		remoteHost         string = "resonate.is"
+		remoteUser         string = "resonate_is"
 	)
 
 	err = godotenv.Load()
@@ -54,6 +60,40 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	if os.Getenv("RESONATE_REMOTE_HOST") != "" {
+		remoteHost = os.Getenv("RESONATE_REMOTE_HOST")
+	}
+
+	sshTun := sshtun.New(localPort, remoteHost, remotePort)
+
+	sshTun.SetSSHAgent()
+	sshTun.SetUser(remoteUser)
+	sshTun.SetDebug(true)
+
+	sshTun.Lock()
+
+	sshTun.SetConnState(func(tun *sshtun.SSHTun, state sshtun.ConnState) {
+		switch state {
+		case sshtun.StateStarting:
+			log.Printf("STATE is Starting")
+		case sshtun.StateStarted:
+			log.Printf("STATE is Started")
+		case sshtun.StateStopped:
+			log.Printf("STATE is Stopped")
+		}
+	})
+
+	sshTun.Unlock()
+
+	go func() {
+		for {
+			if err := sshTun.Start(); err != nil {
+				log.Printf("SSH tunnel stopped: %s", err.Error())
+				time.Sleep(time.Second) // don't flood if there's a start error :)
+			}
+		}
+	}()
 
 	// postgres db config
 	if os.Getenv("POSTGRES_DB_USER") != "" {
@@ -294,6 +334,8 @@ func main() {
 	}
 
 	fmt.Println("Number of PG users:", len(pgusers))
+
+	sshTun.Stop()
 }
 
 // Need track model on user-api legacy
