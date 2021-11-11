@@ -285,53 +285,59 @@ func main() {
 				panic(err)
 			}
 
-			if thisUsersNickname != "" && !Seen(allNicknames, thisUsersNickname) {
-				allNicknames = append(allNicknames, thisUsersNickname)
+			if thisUsersNickname == "" {
+				continue
+			}
 
-				var refUserID uuid.UUID
+			if Seen(allNicknames, thisUsersNickname) {
+				fmt.Println("Artist or label with duplicate nickname, id: ", thisUser.ID)
+				continue
+			}
 
-				if newPGUser.ID == uuid.Nil {
-					refUserID = existingUser.ID
-				} else {
-					refUserID = newPGUser.ID
-				}
+			allNicknames = append(allNicknames, thisUsersNickname)
 
-				newPGUserGroup := &model.UserGroup{
-					OwnerID:     refUserID,
-					DisplayName: thisUsersNickname,
-					Type:        userGroup,
-					TypeID:      userGroup.ID,
-				}
+			var refUserID uuid.UUID
 
-				err = targetPSDB.NewSelect().
+			if newPGUser.ID == uuid.Nil {
+				refUserID = existingUser.ID
+			} else {
+				refUserID = newPGUser.ID
+			}
+
+			newPGUserGroup := &model.UserGroup{
+				OwnerID:     refUserID,
+				DisplayName: thisUsersNickname,
+				Type:        userGroup,
+				TypeID:      userGroup.ID,
+			}
+
+			err = targetPSDB.NewSelect().
+				Model(newPGUserGroup).
+				Where("owner_id = ?", refUserID).
+				Scan(ctx)
+
+			if err != nil {
+				//insert
+				_, err = targetPSDB.NewInsert().
 					Model(newPGUserGroup).
-					Where("owner_id = ?", refUserID).
-					Scan(ctx)
+					Exec(ctx)
 
 				if err != nil {
-					//insert
-					_, err = targetPSDB.NewInsert().
-						Model(newPGUserGroup).
-						Exec(ctx)
-
-					if err != nil {
-						panic(err)
-					}
-				} else {
-					//update
-					_, err = targetPSDB.NewUpdate().
-						Model(newPGUserGroup).
-						Set("display_name = ?", thisUsersNickname).
-						Set("type = ?", userGroup).
-						Set("type_id = ?", userGroup.ID).
-						Where("owner_id = ?", refUserID).
-						Exec(ctx)
-
-					if err != nil {
-						panic(err)
-					}
+					panic(err)
 				}
+			} else {
+				//update
+				_, err = targetPSDB.NewUpdate().
+					Model(newPGUserGroup).
+					Set("display_name = ?", thisUsersNickname).
+					Set("type = ?", userGroup).
+					Set("type_id = ?", userGroup.ID).
+					Where("owner_id = ?", refUserID).
+					Exec(ctx)
 
+				if err != nil {
+					panic(err)
+				}
 			}
 
 		}
