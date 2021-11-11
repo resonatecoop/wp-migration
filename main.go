@@ -320,6 +320,8 @@ func main() {
 					_, err = targetPSDB.NewUpdate().
 						Model(newPGUserGroup).
 						Set("display_name = ?", thisUsersNickname).
+						Set("type = ?", personaGroup).
+						Set("type_id = ?", personaGroup.ID).
 						Where("owner_id = ?", refUserID).
 						Exec(ctx)
 
