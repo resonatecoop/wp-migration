@@ -261,6 +261,17 @@ func main() {
 			inserted++
 		}
 
+		personaGroup := new(model.GroupType)
+
+		err = targetPSDB.NewSelect().
+			Model(personaGroup).
+			Where("name = ?", "persona").
+			Scan(ctx)
+
+		if err != nil {
+			panic(err)
+		}
+
 		if role_id == 5 {
 			//insert a new UserGroup
 
@@ -286,6 +297,8 @@ func main() {
 				newPGUserGroup := &model.UserGroup{
 					OwnerID:     refUserID,
 					DisplayName: thisUsersNickname,
+					Type:        personaGroup,
+					TypeID:      personaGroup.ID,
 				}
 
 				err = targetPSDB.NewSelect().
@@ -307,6 +320,8 @@ func main() {
 					_, err = targetPSDB.NewUpdate().
 						Model(newPGUserGroup).
 						Set("display_name = ?", thisUsersNickname).
+						Set("type = ?", personaGroup).
+						Set("type_id = ?", personaGroup.ID).
 						Where("owner_id = ?", refUserID).
 						Exec(ctx)
 
