@@ -36,6 +36,7 @@ func main() {
 		allEmails          []string
 		allNicknames       []string
 		role_id            int32
+		groupType          string = "persona"
 		inserted           int    = 0
 		updated            int    = 0
 		skipped            int    = 0
@@ -196,6 +197,7 @@ func main() {
 			role_id = 5
 		case "label-owner":
 			role_id = 4
+			groupType = "label"
 		case "admin":
 			role_id = 3
 		default:
@@ -261,18 +263,18 @@ func main() {
 			inserted++
 		}
 
-		personaGroup := new(model.GroupType)
+		userGroup := new(model.GroupType)
 
 		err = targetPSDB.NewSelect().
-			Model(personaGroup).
-			Where("name = ?", "persona").
+			Model(userGroup).
+			Where("name = ?", groupType).
 			Scan(ctx)
 
 		if err != nil {
 			panic(err)
 		}
 
-		if role_id == 5 {
+		if role_id == 5 || role_id == 4 {
 			//insert a new UserGroup
 
 			var thisUsersNickname = ""
@@ -297,8 +299,8 @@ func main() {
 				newPGUserGroup := &model.UserGroup{
 					OwnerID:     refUserID,
 					DisplayName: thisUsersNickname,
-					Type:        personaGroup,
-					TypeID:      personaGroup.ID,
+					Type:        userGroup,
+					TypeID:      userGroup.ID,
 				}
 
 				err = targetPSDB.NewSelect().
@@ -320,8 +322,8 @@ func main() {
 					_, err = targetPSDB.NewUpdate().
 						Model(newPGUserGroup).
 						Set("display_name = ?", thisUsersNickname).
-						Set("type = ?", personaGroup).
-						Set("type_id = ?", personaGroup.ID).
+						Set("type = ?", userGroup).
+						Set("type_id = ?", userGroup.ID).
 						Where("owner_id = ?", refUserID).
 						Exec(ctx)
 
