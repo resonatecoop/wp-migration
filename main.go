@@ -313,7 +313,7 @@ func main() {
 
 			err = targetPSDB.NewSelect().
 				Model(newPGUserGroup).
-				Where("owner_id = ?", refUserID).
+				Where("display_name = ?", thisUsersNickname).
 				Scan(ctx)
 
 			if err != nil {
