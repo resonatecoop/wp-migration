@@ -16,7 +16,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v4"
 	stdlib "github.com/jackc/pgx/v4/stdlib"
+	rsmodel "github.com/resonatecoop/user-api/legacy_model"
 	wpmodel "github.com/resonatecoop/user-api/legacy_wp_model"
+
 	"github.com/resonatecoop/user-api/model"
 	pgmodel "github.com/resonatecoop/user-api/model"
 	"github.com/uptrace/bun"
@@ -212,6 +214,8 @@ func main() {
 			TenantID: 0,
 		}
 
+		newPGUser.CreatedAt = thisUser.Registered
+
 		err = getTrack(sourceWPDB, ctx, &thisUser)
 
 		if err == nil {
@@ -227,6 +231,8 @@ func main() {
 
 			newPGUser.Country = gountry.Codes.Alpha2
 		}
+
+		thisUsersCredit, _ := getUserCredits(sourceWPDB, ctx, &thisUser)
 
 		existingUser := new(model.User)
 
@@ -251,9 +257,25 @@ func main() {
 			updated++
 		} else {
 			//insert
-			_, err = targetPSDB.NewInsert().
+			_, err := targetPSDB.NewInsert().
 				Model(newPGUser).
-				Column("id", "username", "password", "legacy_id", "country", "role_id", "tenant_id", "member").
+				Column("id", "username", "password", "legacy_id", "country", "role_id", "tenant_id", "member", "created_at").
+				Returning("id").
+				Exec(ctx)
+
+			if err != nil {
+				panic(err)
+			}
+
+			newPGUserCredit := &model.Credit{
+				UserID: newPGUser.ID,
+				Total:  int64(thisUsersCredit),
+			}
+
+			newPGUserCredit.CreatedAt = newPGUser.CreatedAt
+
+			_, err = targetPSDB.NewInsert().
+				Model(newPGUserCredit).
 				Exec(ctx)
 
 			if err != nil {
@@ -369,11 +391,10 @@ func getTrack(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser) error {
 
 	status := []int{0, 2, 3}
 
-	track := map[string]interface{}{}
+	track := new(rsmodel.Track)
 
 	err = WPDB.NewSelect().
-		Model(&track).
-		Table("tracks").
+		Model(track).
 		Where("uid = ?", user.ID).
 		Where("status IN (?)", bun.In(status)).
 		Scan(ctx)
@@ -383,6 +404,21 @@ func getTrack(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser) error {
 	}
 
 	return nil
+}
+
+func getUserCredits(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser) (int, error) {
+	var (
+		err error
+	)
+
+	credit := new(rsmodel.Credit)
+
+	err = WPDB.NewSelect().
+		Model(credit).
+		Where("uid = ?", user.ID).
+		Scan(ctx)
+
+	return credit.Total, err
 }
 
 func getUserMetaValue(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser, key string) (string, error) {
