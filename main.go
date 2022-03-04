@@ -254,6 +254,21 @@ func main() {
 				panic(err)
 			}
 
+			newPGUserCredit := &model.Credit{
+				UserID: existingUser.ID,
+				Total:  int64(thisUsersCredit),
+			}
+
+			_, err = targetPSDB.NewUpdate().
+				Model(newPGUserCredit).
+				Column("id", "user_id", "total").
+				Where("user_id = ?", thisUser.ID).
+				Exec(ctx)
+
+			if err != nil {
+				panic(err)
+			}
+
 			updated++
 		} else {
 			//insert
