@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -146,7 +147,7 @@ func main() {
 
 	err = sourceWPDB.NewSelect().
 		Model(&wpusers).
-		Where("user_email NOT LIKE ?", "%@resonate.is").
+		// Where("user_email NOT LIKE ?", "%@resonate.is").
 		Scan(ctx)
 
 	if err != nil {
@@ -175,11 +176,11 @@ func main() {
 
 	for _, thisUser := range wpusers {
 
-		if thisUser.Email == "" {
-			fmt.Println("User with blank email skipped, id: ", thisUser.ID)
-			skipped++
-			continue
-		}
+		// if thisUser.Email == "" {
+		// 	fmt.Println("User with blank email skipped, id: ", thisUser.ID)
+		// 	skipped++
+		// 	continue
+		// }
 		if Seen(allEmails, thisUser.Email) {
 			fmt.Println("User with duplicate email skipped, id: ", thisUser.ID)
 			skipped++
@@ -234,6 +235,10 @@ func main() {
 
 		thisUsersCredit, _ := getUserCredits(sourceWPDB, ctx, &thisUser)
 
+		thisUsersLabel, _ := getUserMetaValue(sourceWPDB, ctx, &thisUser, "mylabel")
+
+		isGeneratedUser := strings.Contains(newPGUser.Username, "@resonate.is") // user probably on a label
+
 		existingUser := new(model.User)
 
 		err = targetPSDB.NewSelect().
@@ -270,7 +275,7 @@ func main() {
 			}
 
 			updated++
-		} else {
+		} else if !isGeneratedUser && thisUser.Email != "" {
 			//insert
 			_, err := targetPSDB.NewInsert().
 				Model(newPGUser).
@@ -346,6 +351,19 @@ func main() {
 				DisplayName: thisUsersNickname,
 				Type:        userGroup,
 				TypeID:      userGroup.ID,
+			}
+
+			// user on a label needs an usergroup
+			if thisUsersLabel != "" && isGeneratedUser {
+				labelUser := new(model.User)
+				err = targetPSDB.NewSelect().
+					Model(labelUser).
+					Where("legacy_id = ?", thisUsersLabel).
+					Scan(ctx)
+
+				if labelUser != nil {
+					refUserID = labelUser.ID
+				}
 			}
 
 			err = targetPSDB.NewSelect().
