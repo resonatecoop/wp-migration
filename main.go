@@ -176,11 +176,11 @@ func main() {
 
 	for _, thisUser := range wpusers {
 
-		// if thisUser.Email == "" {
-		// 	fmt.Println("User with blank email skipped, id: ", thisUser.ID)
-		// 	skipped++
-		// 	continue
-		// }
+		if thisUser.Email == "" {
+			fmt.Println("User with blank email skipped, id: ", thisUser.ID)
+			skipped++
+			continue
+		}
 		if Seen(allEmails, thisUser.Email) {
 			fmt.Println("User with duplicate email skipped, id: ", thisUser.ID)
 			skipped++
@@ -275,7 +275,7 @@ func main() {
 			}
 
 			updated++
-		} else if !isGeneratedUser && thisUser.Email != "" {
+		} else if !isGeneratedUser {
 			//insert
 			_, err := targetPSDB.NewInsert().
 				Model(newPGUser).
