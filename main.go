@@ -372,13 +372,24 @@ func main() {
 				Scan(ctx)
 
 			if err != nil {
-				//insert
-				_, err = targetPSDB.NewInsert().
-					Model(newPGUserGroup).
-					Exec(ctx)
+				existingUsergroup := new(model.UserGroup)
+
+				err = targetPSDB.NewSelect().
+					Model(existingUsergroup).
+					Where("display_name = ?", thisUsersNickname).
+					Scan(ctx)
 
 				if err != nil {
-					log.Printf("Failed to insert usergroup: %s", err.Error())
+					//insert
+					_, err = targetPSDB.NewInsert().
+						Model(newPGUserGroup).
+						Exec(ctx)
+
+					if err != nil {
+						panic(err)
+					}
+				} else {
+					log.Printf("Display name already taken: %s", thisUsersNickname)
 				}
 			} else {
 				//update
