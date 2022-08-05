@@ -275,7 +275,7 @@ func main() {
 			}
 
 			updated++
-		} else if !isGeneratedUser {
+		} else {
 			//insert
 			_, err := targetPSDB.NewInsert().
 				Model(newPGUser).
