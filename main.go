@@ -361,7 +361,7 @@ func main() {
 					Where("legacy_id = ?", thisUsersLabel).
 					Scan(ctx)
 
-				if err == nil {
+				if labelUser.ID != uuid.Nil {
 					refUserID = labelUser.ID
 				}
 			}
