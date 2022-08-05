@@ -378,7 +378,7 @@ func main() {
 					Exec(ctx)
 
 				if err != nil {
-					panic(err)
+					log.Printf("Failed to insert usergroup: %s", err.Error())
 				}
 			} else {
 				//update
