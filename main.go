@@ -485,6 +485,7 @@ func getUserMetaValue(WPDB *bun.DB, ctx context.Context, user *wpmodel.WpUser, k
 		Model(userMeta).
 		Where("meta_key = ?", key).
 		Where("user_id = ?", user.ID).
+		Limit(1).
 		Scan(ctx)
 
 	if err != nil {
