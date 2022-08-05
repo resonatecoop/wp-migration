@@ -237,7 +237,7 @@ func main() {
 
 		thisUsersLabel, _ := getUserMetaValue(sourceWPDB, ctx, &thisUser, "mylabel")
 
-		isGeneratedUser := strings.Contains(newPGUser.Username, "@resonate.is") // user probably on a label
+		isGeneratedUser := strings.Contains(newPGUser.Username, "@resonate.is") && role_id == 5 // user probably on a label
 
 		existingUser := new(model.User)
 
