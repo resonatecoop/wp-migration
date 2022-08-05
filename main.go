@@ -391,7 +391,7 @@ func main() {
 				} else {
 					log.Printf("Display name already taken: %s", thisUsersNickname)
 				}
-			} else {
+			} else if refUserID != uuid.Nil {
 				existingUsergroup := new(model.UserGroup)
 
 				err = targetPSDB.NewSelect().
