@@ -392,17 +392,26 @@ func main() {
 					log.Printf("Display name already taken: %s", thisUsersNickname)
 				}
 			} else {
-				//update
-				_, err = targetPSDB.NewUpdate().
-					Model(newPGUserGroup).
-					Set("display_name = ?", thisUsersNickname).
-					Set("type = ?", userGroup).
-					Set("type_id = ?", userGroup.ID).
-					Where("owner_id = ?", refUserID).
-					Exec(ctx)
+				existingUsergroup := new(model.UserGroup)
+
+				err = targetPSDB.NewSelect().
+					Model(existingUsergroup).
+					Where("display_name = ?", thisUsersNickname).
+					Scan(ctx)
 
 				if err != nil {
-					panic(err)
+					//update
+					_, err = targetPSDB.NewUpdate().
+						Model(newPGUserGroup).
+						Set("display_name = ?", thisUsersNickname).
+						Set("type = ?", userGroup).
+						Set("type_id = ?", userGroup.ID).
+						Where("owner_id = ?", refUserID).
+						Exec(ctx)
+
+					if err != nil {
+						panic(err)
+					}
 				}
 			}
 
